@@ -1,15 +1,25 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const NodeCache = require('node-cache');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+const cache = new NodeCache({ stdTTL: 300, checkperiod: 120 });
+
 app.post('/api/shipping/quote', async (req, res) => {
+    const cacheKey = JSON.stringify(req.body);
+    const cachedData = cache.get(cacheKey);
+
+    if (cachedData) {
+        return res.json(cachedData);
+    }
+
     try {
         const response = await axios.post(
-            'http://private-anon-a6bcc7c693-frenetapi.apiary-mock.com/shipping/quote',
+            'https://private-anon-a6bcc7c693-frenetapi.apiary-mock.com/shipping/quote',
             req.body,
             {
                 headers: {
@@ -19,6 +29,7 @@ app.post('/api/shipping/quote', async (req, res) => {
                 },
             }
         );
+        cache.set(cacheKey, response.data);
         res.json(response.data);
     } catch (error) {
         res.status(error.response?.status || 500).json(error.response?.data || { message: 'Erro na cotação' });
